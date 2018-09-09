@@ -27,6 +27,19 @@
 
 namespace smf {
 
+
+//Binary converter functions
+std::string MidiFile::convertToBinary(){
+	std::cout << "Convert Midi To Binary\n";
+	return "return of convertToBinary";
+}
+
+smf::MidiFile MidiFile::convertBinaryToMidi(const std::string & binaryString){
+	std::cout << "Convert Binary To Midi\n";
+	smf::MidiFile ret;
+	return ret;
+}
+
 //////////////////////////////
 //
 // MidiFile::MidiFile -- Constuctor.
@@ -3169,6 +3182,3 @@ std::ostream& operator<<(std::ostream& out, smf::MidiFile& aMidiFile) {
 	aMidiFile.writeBinascWithComments(out);
 	return out;
 }
-
-
-
