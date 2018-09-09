@@ -64,6 +64,11 @@ class MidiFile {
 		bool           writeBinascWithComments     (std::ostream& out);
 		bool           status                      (void) const;
 
+		//convertToBinary functions
+		std::string convertToBinary();
+		smf::MidiFile convertBinaryToMidi(const std::string & binaryString);
+
+
 		// track-related functions:
 		const MidiEventList& operator[]            (int aTrack) const;
 		MidiEventList&   operator[]                (int aTrack);
@@ -302,6 +307,3 @@ class MidiFile {
 std::ostream& operator<<(std::ostream& out, smf::MidiFile& aMidiFile);
 
 #endif /* _MIDIFILE_H_INCLUDED */
-
-
-
