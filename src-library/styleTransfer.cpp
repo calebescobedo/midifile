@@ -6,26 +6,32 @@
 
 class Song{
 
-public:
+
+  public:
   //member variables
   int m_numTracks;
   int m_ticksPerQuarterNotes;
 
   std::vector<int> m_trackInsterments;
-
   smf::MidiFile m_midiFile;
 
   //constructors
   Song();
   Song(smf::MidiFile & midiFile);
-private:
+  void write(std::string absFilePath);
+
+  private:
+  //these need to be called in this exact order or operations
   void getTrackInsterments();
+  void pruneTracks();
+  void groupInsterments();
 
 };
 
 Song::Song(){}
 Song::Song(smf::MidiFile & midiFile): m_midiFile(midiFile){
 
+  m_midiFile.sortTracks();
   m_midiFile.doTimeAnalysis();
   m_midiFile.absoluteTicks();
   m_midiFile.linkNotePairs();
@@ -34,6 +40,24 @@ Song::Song(smf::MidiFile & midiFile): m_midiFile(midiFile){
   m_ticksPerQuarterNotes = m_midiFile.getTicksPerQuarterNote();
 
   getTrackInsterments();
+  pruneTracks();
+  groupInsterments();
+}
+
+//im going to need to use merge tracks to get all the tracks that are in the same family togeather
+
+void Song::groupInsterments(){
+  for(int x = 0; x < m_numTracks-1; x++){
+    for(int y = x + 1; y < m_numTracks; y++){
+      if( (m_trackInsterments[x]/8) == (m_trackInsterments[y]/8) ){
+        m_midiFile.mergeTracks(x, y);
+        m_numTracks = m_midiFile.getTrackCount();
+        m_trackInsterments.erase(m_trackInsterments.begin() + y);
+        y--;
+      }
+    }
+  }
+
 }
 
 void Song::getTrackInsterments(){
@@ -42,11 +66,30 @@ void Song::getTrackInsterments(){
     for(int curTrack = 0; curTrack < m_numTracks; curTrack++){
       for(int curEvent = 0; curEvent < m_midiFile[curTrack].size(); curEvent++){
         if(m_midiFile[curTrack][curEvent].isTimbre()){
-          //std::cout << std::dec <<  m_midiFile[curTrack][curEvent].getP0();
+          //TODO: what do I do if the patch is changed in the middle?
+          if(m_trackInsterments[curTrack] == -1){
+            m_trackInsterments[curTrack] =  m_midiFile[curTrack][curEvent].getP1();
+          }
         }
       }
     }
-    std::cout << std::endl;
+  }
+
+  void Song::pruneTracks(){
+    for(int x = 0; x < m_trackInsterments.size(); x++){
+
+      if(m_trackInsterments[x] == -1){
+        m_midiFile.deleteTrack(x);
+        m_trackInsterments.erase(m_trackInsterments.begin() + x);
+        x--;
+
+      }
+    }
+    m_numTracks = m_midiFile.getTrackCount();
+  }
+
+  void Song::write(std::string absFilePath){
+    m_midiFile.write(absFilePath);
   }
 
 class Converter{

@@ -19,18 +19,20 @@ int main(int argc, char** argv) {
    //create a midi file for testing the functions on one file
    smf::MidiFile firstMidi;
    //read in the single test file
-   firstMidi.read(root + filePath);
-   //need to run all of these funtions in order to get the start and end of each note
-   firstMidi.doTimeAnalysis(); //time analysis so I can call the later functions
-   firstMidi.absoluteTicks(); //set the time on the tacks to absolute time
-   firstMidi.linkNotePairs(); //get note end and start times
-   firstMidi.joinTracks(); //smash all of the tracks togeather
+   firstMidi.read(root + "midiSongs/AMERICANA_FOLK_www.pdmusic.org_MIDIRip/civilwar/cws08.mid");
 
    //Converter myConverter(fileNames);
    Song firstSong(firstMidi);
-   //std::cout << firstSong.m_numTracks << std::endl; 
+
+   std::cout << "num tracks: " << firstSong.m_numTracks << std::endl;
+   for(int x = 0; x < firstSong.m_numTracks; x++){
+      std::cout << std::dec <<firstSong.m_trackInsterments[x] << std::endl;
+   }
+   
+   firstSong.write("/Users/Betty/midiOutputFile/prunedTracks.mid");
 
 
+   //std::cout << firstSong.m_numTracks << std::endl;
 
    //TODO: cycle through all tracks and get that as the true ending of the midifile!
    //int lastTick = styleTransfer::getLastNoteOff(firstMidi);
