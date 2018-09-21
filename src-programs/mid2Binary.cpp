@@ -1,81 +1,78 @@
-//
-// Programmer:    Caleb Escobedo <cescobed@trinity.edu>
-// Creation Date: Sat Sep 8 12:30:00 CST 2018
-// Last Modified: Sat Sep 8 12:30:00 CST 2018
-// Filename:      midifile/src-programs/mid2Binary.cpp
-// Website:       http://midifile.sapp.org
-// Syntax:        C++11
-//
-// Description:   Converts a single midi channel to binary file and back
-#include "MidiFile.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <string>
+#include "../src-library/styleTransfer.cpp"
 
-std::vector<std::string> getFileNames(std::string fileName, std::string root );
-std::vector<smf::MidiFile> loadMidiFiles(std::vector<std::string> & fileNames);
-std::vector<int> getTrackDistrobution(std::vector<smf::MidiFile> & allSongs){
-   std::vector<int> ret(16, 0);
-   int curTrackCount = 1;
-   for(int x = 0; x < allSongs.size(); x++){
-      curTrackCount = allSongs[x].getTrackCount();
-      ret[curTrackCount-1]++;
-   }
-   return ret;
-}
+
 
 int main(int argc, char** argv) {
+
+   //both files use this as there root directory
    std::string root = "/Users/Betty/midi/";
+
+   //test single file to load in
+   std::string filePath = "midiSongs/Classical_Piano_piano-midi.de_MIDIRip/albeniz/alb_esp1.mid";
+
+   //name of the file containing all midi file paths
    std::string classicalFileName = "classicalPianoNames";
 
+   //from the file path root/classicalFileNames get read all of the names out of the file
+   std::vector<std::string> fileNames = styleTransfer::getFileNames(classicalFileName, root);
 
-   std::vector<std::string> fileNames = getFileNames(classicalFileName, root);
-   std::vector<smf::MidiFile> allSongs = loadMidiFiles(fileNames);
-   std::vector<int> trackDistrobution = getTrackDistrobution(allSongs);
+   //create a midi file for testing the functions on one file
+   smf::MidiFile firstMidi;
+   //read in the single test file
+   firstMidi.read(root + filePath);
+   //need to run all of these funtions in order to get the start and end of each note
+   firstMidi.doTimeAnalysis(); //time analysis so I can call the later functions
+   firstMidi.absoluteTicks(); //set the time on the tacks to absolute time
+   firstMidi.linkNotePairs(); //get note end and start times
+   firstMidi.joinTracks(); //smash all of the tracks togeather
 
-   for(int x = 0; x < trackDistrobution.size(); x++){
-      std::cout << "Songs with " << x+1 << " tracks : " << trackDistrobution[x] << std::endl;
+   //Converter myConverter(fileNames);
+   Song firstSong(firstMidi);
+   //std::cout << firstSong.m_numTracks << std::endl; 
+
+
+
+   //TODO: cycle through all tracks and get that as the true ending of the midifile!
+   //int lastTick = styleTransfer::getLastNoteOff(firstMidi);
+   //int minNoteLength = styleTransfer::getMinNoteLength(firstMidi);
+   //std::cout << "Last Tick: " << styleTransfer::getLastNoteOff(firstMidi) << std::endl;
+   //int numTicksDivMinNote = lastTick/minNoteLength;
+
+
+
+   //row and then col idx. key(128) then time (TPQN/MinNote). think about this
+   //std::vector<std::vector<bool>> firstSong(128, std::vector<bool> (numTicksDivMinNote, 0));
+
+   //fill in the vector of vectors by using the on notes!
+   //styleTransfer::fillInHotEncodedMidi(firstSong, firstMidi, minNoteLength);
+
+   //styleTransfer::printBinarySongToTerminal(firstSong);
+   //styleTransfer::printBinarySongToFile(firstSong, "/Users/Betty/midiOutputFile/bSong.txt");
+
+   //styleTransfer::convertBinaryToMidi("/Users/Betty/midiOutputFile/bSong.txt", "/Users/Betty/midiOutputFile/reRead/test.mid");
+
+
+   //Read in that same file and create a midi file out of it
+   //for(int i = 0; i < firstMidi[0].size(); i++){
+      //if(firstMidi[0][i].isNoteOn()){
+         //std::cout << "channelNib: " << firstMidi[0][i].getChannelNibble() << std::endl;
+         //std::cout << "track: " << firstMidi[0][i].track << std::endl;
+      //}
+   //}
+
+
+   //int readStatus = firstMidi.status();
+
+   /*
+   if(readStatus == 1){
+      std::cout << "Read in file correct!" << std::endl;
+   }else{
+      std::cout << "Read in file wrong" << std::endl;
    }
 
-   smf::MidiFile midifile;
+   std::cout << "Number of Tracks: " << firstMidi.getTrackCount() << std::endl;
+   */
+   //just load in one file, and try to get it working on that one, then expand it out to others.
 
-   std::string binaryMidi= midifile.convertToBinary();
-   midifile.convertBinaryToMidi(binaryMidi);
    return 0;
-
-}
-
-
-std::vector<std::string> getFileNames(std::string fileName, std::string root ){
-
-   std::vector<std::string> retNames;
-
-   std::ifstream file(root + fileName);
-
-   std::string line;
-   while (file){
-      std::getline(file, line);
-      retNames.push_back(root + line);
-   }
-      retNames.pop_back();//one extra file name that is just the root?
-   file.close();
-
-   return retNames;
-}
-
-std::vector<smf::MidiFile> loadMidiFiles(std::vector<std::string> & fileNames){
-
-   std::vector<smf::MidiFile> allSongs(fileNames.size());
-
-   bool curLoadStatus;
-   int failedLoads = 0;
-   for(int x = 0; x < fileNames.size(); x++){
-      allSongs[x] = smf::MidiFile(fileNames[x]);
-      curLoadStatus = allSongs[x].status();
-      if(!curLoadStatus) failedLoads++;
-   }
-
-   std::cout << "Total Failed Loads: " << failedLoads << "/" << fileNames.size() << std::endl;
-   return allSongs;
 }
