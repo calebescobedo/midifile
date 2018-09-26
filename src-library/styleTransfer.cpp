@@ -19,6 +19,65 @@ class Song{
   Song();
   Song(smf::MidiFile & midiFile);
   void write(std::string absFilePath);
+  void writeToBinaryWithAllPossible(std::string absFilePath);
+  void loadInBinary(std::string absBinaryPath){
+
+    smf::MidiFile loadedInFile;
+    loadedInFile.addTrack();
+    loadedInFile.setTicksPerQuarterNote(96);
+    std::cout << "after creation: " << loadedInFile.getTrackCount()  << std::endl;
+
+    std::ifstream infile(absBinaryPath);
+    std::string curLine;
+
+    int curChannel = 0;
+    int linesRead = 0;
+    int curTrack = 0;
+    int velocity = 80;
+    int startTick;
+    int endTick;
+
+    std::vector<std::string> curChannelVec;
+    while(std::getline(infile, curLine)){
+
+      if(curLine.length() == 0){
+        //skip the line
+        linesRead = 0;
+        curChannelVec.clear();
+      }else if(curLine.length() == 1){
+        curChannel++;
+        linesRead = 0;
+        curChannelVec.clear();
+      }else{
+        curChannelVec.push_back(curLine);
+        linesRead++;
+      }
+
+      if(linesRead == 128){
+        for(int curKey = 0; curKey < curChannelVec.size(); curKey++){
+          for(int curTime = 0; curTime < curChannelVec[curKey].size(); curTime++){
+            if(curChannelVec[curKey][curTime] == '1'){
+              startTick = curTime;
+              endTick = curTime;
+              while(endTick < curChannelVec[curKey].size() && curChannelVec[curKey][endTick] == '1'){
+                endTick++;
+                curTime++;
+              }
+              //do the process of reading in this file and creating the tracks
+              std::cout << "track: " << curTrack << " startTime: " << startTick << " curChannel" << curChannel << " curKey "  <<  curKey << "Velocity: " << velocity << std::endl;
+              loadedInFile.addNoteOn(curTrack, startTick, curChannel, curKey, velocity);
+              loadedInFile.addNoteOff(curTrack, endTick, curChannel, curKey);
+            }
+          }
+        }
+        curTrack++;
+       }
+    }
+
+    m_midiFile = loadedInFile;
+    m_midiFile.sortTracks();
+  }
+
 
   private:
   //these need to be called in this exact order or operations
@@ -42,18 +101,113 @@ Song::Song(smf::MidiFile & midiFile): m_midiFile(midiFile){
   getTrackInsterments();
   pruneTracks();
   groupInsterments();
+  getTrackInsterments();
+
+  m_midiFile.sortTracks();
+  m_midiFile.doTimeAnalysis();
+  m_midiFile.absoluteTicks();
+  m_midiFile.linkNotePairs();
+
 }
 
 //im going to need to use merge tracks to get all the tracks that are in the same family togeather
 
+std::vector<std::vector<bool>> getBinaryTrack(smf::MidiEventList& eventList, int maxLength, int ticksPQN){
+
+  int key;
+  int duration;
+  int startTime;
+
+  int minNote = ticksPQN / 8;
+  std::vector<std::vector<bool>> ret(128, std::vector<bool>(maxLength, 0));
+
+  for(int i = 0; i < eventList.size(); i++){
+
+    if(eventList[i].isNoteOn()){
+
+      key = eventList[i].getKeyNumber();
+      duration = eventList[i].getTickDuration()/minNote;
+      startTime = eventList[i].tick/minNote;
+
+      //for the duration of the note turn it on in the binary file
+      for(int t = startTime; t < startTime + duration; t++){
+        if (t < maxLength){
+          ret[key][t] = 1;
+          //guard agains indexing out of bounds
+        }
+      }
+
+    }
+
+  }
+  return ret;
+
+}
+
+void printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & myFile){
+
+  for(int key = 0; key < thingToPrint.size(); key++){
+    for(int curTime = 0; curTime < thingToPrint[key].size(); curTime++){
+      if(thingToPrint[key][curTime] == 1){
+        myFile << "1";
+      } else {
+        myFile << "0";
+      }
+    }
+    myFile << "\n";
+  }
+  myFile << "\n";
+}
+
+
+void Song::writeToBinaryWithAllPossible(std::string absFilePath){
+  //there are 16 familys of midi isterments
+  std::ofstream myfile;
+  myfile.open (absFilePath);
+
+  int maxLength = 512;
+  bool found = false;
+  std::vector<std::vector<bool>> curChannel(128, std::vector<bool>(maxLength, 0));
+
+  for(int curFamily = 0; curFamily < 16; curFamily++){
+
+    for(int x = 0; x < m_trackInsterments.size(); x++){
+
+      if(curFamily == (m_trackInsterments[x]/8)){
+
+        curChannel = getBinaryTrack(m_midiFile[x], maxLength, m_ticksPerQuarterNotes);
+        found = true;
+      }
+
+    }
+    if(found == false){
+      curChannel = std::vector<std::vector<bool>>(1, std::vector<bool>(1, 0));
+    }
+    found = false;
+
+    printToFile(curChannel, myfile);
+
+  }
+
+  myfile.close();
+}
+
+
 void Song::groupInsterments(){
+
   for(int x = 0; x < m_numTracks-1; x++){
     for(int y = x + 1; y < m_numTracks; y++){
       if( (m_trackInsterments[x]/8) == (m_trackInsterments[y]/8) ){
+
         m_midiFile.mergeTracks(x, y);
         m_numTracks = m_midiFile.getTrackCount();
         m_trackInsterments.erase(m_trackInsterments.begin() + y);
+        m_midiFile.sortTracks();
+        m_midiFile.doTimeAnalysis();
+        m_midiFile.absoluteTicks();
+        m_midiFile.linkNotePairs();
         y--;
+
       }
     }
   }
@@ -63,12 +217,13 @@ void Song::groupInsterments(){
 void Song::getTrackInsterments(){
     m_trackInsterments = std::vector<int>(m_numTracks, -1);//all tracks to have an insterment number of -1
 
-    for(int curTrack = 0; curTrack < m_numTracks; curTrack++){
-      for(int curEvent = 0; curEvent < m_midiFile[curTrack].size(); curEvent++){
-        if(m_midiFile[curTrack][curEvent].isTimbre()){
-          //TODO: what do I do if the patch is changed in the middle?
-          if(m_trackInsterments[curTrack] == -1){
-            m_trackInsterments[curTrack] =  m_midiFile[curTrack][curEvent].getP1();
+    for(int curChannel = 0; curChannel < m_numTracks; curChannel++){
+      for(int curEvent = 0; curEvent < m_midiFile[curChannel].size(); curEvent++){
+        if(m_midiFile[curChannel][curEvent].isTimbre()){
+          if(m_trackInsterments[curChannel] == -1){
+            m_trackInsterments[curChannel] =  m_midiFile[curChannel][curEvent].getP1();
+          }else{
+            m_midiFile[curChannel][curEvent].setP1(m_trackInsterments[curChannel]);
           }
         }
       }
@@ -177,9 +332,6 @@ namespace styleTransfer{
 
     //parse the lines into note on and off events
 
-
-
-
     smf::MidiFile ret;
     //start of write
 
@@ -187,11 +339,6 @@ namespace styleTransfer{
     int track   = 0;
     int channel = 0;
     int instr   = 0;
-
-
-
-
-
 
     midifile.addTimbre(track, 0, channel, instr);
 
@@ -357,10 +504,10 @@ namespace styleTransfer{
 
   std::vector<int> getTrackDistrobution(std::vector<smf::MidiFile> & allSongs){
      std::vector<int> ret(16, 0);
-     int curTrackCount = 1;
+     int curChannelCount = 1;
      for(int x = 0; x < allSongs.size(); x++){
-        curTrackCount = allSongs[x].getTrackCount();
-        ret[curTrackCount-1]++;
+        curChannelCount = allSongs[x].getTrackCount();
+        ret[curChannelCount-1]++;
      }
      return ret;
   }

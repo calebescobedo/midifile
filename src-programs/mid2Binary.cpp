@@ -5,31 +5,43 @@
 int main(int argc, char** argv) {
 
    //both files use this as there root directory
-   std::string root = "/Users/Betty/midi/";
+   //std::string root = "/Users/Betty/midi/";
 
    //test single file to load in
-   std::string filePath = "midiSongs/Classical_Piano_piano-midi.de_MIDIRip/albeniz/alb_esp1.mid";
+   //std::string filePath = "midiSongs/Classical_Piano_piano-midi.de_MIDIRip/albeniz/alb_esp1.mid";
 
    //name of the file containing all midi file paths
-   std::string classicalFileName = "classicalPianoNames";
+   //std::string classicalFileName = "classicalPianoNames";
 
    //from the file path root/classicalFileNames get read all of the names out of the file
-   std::vector<std::string> fileNames = styleTransfer::getFileNames(classicalFileName, root);
+   //std::vector<std::string> fileNames = styleTransfer::getFileNames(classicalFileName, root);
 
    //create a midi file for testing the functions on one file
-   smf::MidiFile firstMidi;
+   //smf::MidiFile firstMidi;
    //read in the single test file
-   firstMidi.read(root + "midiSongs/AMERICANA_FOLK_www.pdmusic.org_MIDIRip/civilwar/cws08.mid");
+   //firstMidi.read(root + "midiSongs/AMERICANA_FOLK_www.pdmusic.org_MIDIRip/civilwar/cws19.mid");
 
    //Converter myConverter(fileNames);
-   Song firstSong(firstMidi);
+   //Song firstSong(firstMidi);
 
-   std::cout << "num tracks: " << firstSong.m_numTracks << std::endl;
-   for(int x = 0; x < firstSong.m_numTracks; x++){
-      std::cout << std::dec <<firstSong.m_trackInsterments[x] << std::endl;
-   }
-   
-   firstSong.write("/Users/Betty/midiOutputFile/prunedTracks.mid");
+   //std::cout << "num tracks: " << firstSong.m_numTracks << std::endl;
+
+   //for(int x = 0; x < firstSong.m_numTracks; x++){
+   //   std::cout << std::dec <<firstSong.m_trackInsterments[x] << std::endl;
+   //}
+
+   //std::cout << "TPQN: " << firstSong.m_ticksPerQuarterNotes << std::endl;
+
+   //firstSong.write("/Users/Betty/midiOutputFile/prunedTracks.mid");
+
+   //firstSong.writeToBinaryWithAllPossible("/Users/Betty/midiOutputFile/binaryAllTracks.txt");
+
+   Song loadedFromBinary;
+   loadedFromBinary.loadInBinary("/Users/Betty/midiOutputFile/binaryAllTracks.txt");
+   std::cout << "Tracks: " << loadedFromBinary.m_midiFile.getTrackCount() << std::endl;
+   loadedFromBinary.write("/Users/Betty/midiOutputFile/loadedInMidi.mid");
+
+
 
 
    //std::cout << firstSong.m_numTracks << std::endl;
