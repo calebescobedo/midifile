@@ -4,8 +4,7 @@
 #include <sstream>
 #include <string>
 
-class Song{
-
+class Binary_Converter{
 
   public:
   //member variables
@@ -16,23 +15,22 @@ class Song{
   smf::MidiFile m_midiFile;
 
   //constructors
-  Song();
-  Song(smf::MidiFile & midiFile);
-  void write(std::string absFilePath);
+  Binary_Converter();
+  Binary_Converter(smf::MidiFile & midiFile);
+  void writeToMidiFile(std::string absFilePath);
   void writeToBinaryWithAllPossible(std::string absFilePath);
   void loadInBinary(std::string absBinaryPath){
 
     smf::MidiFile loadedInFile;
-    loadedInFile.addTrack();
     loadedInFile.setTicksPerQuarterNote(96);
-    std::cout << "after creation: " << loadedInFile.getTrackCount()  << std::endl;
+
 
     std::ifstream infile(absBinaryPath);
     std::string curLine;
 
     int curChannel = 0;
     int linesRead = 0;
-    int curTrack = 0;
+    int curTrack = -1;
     int velocity = 80;
     int startTick;
     int endTick;
@@ -54,23 +52,28 @@ class Song{
       }
 
       if(linesRead == 128){
+        if(curTrack >= 0){
+          loadedInFile.addTrack();
+        }
+
+        curTrack++;
         for(int curKey = 0; curKey < curChannelVec.size(); curKey++){
           for(int curTime = 0; curTime < curChannelVec[curKey].size(); curTime++){
             if(curChannelVec[curKey][curTime] == '1'){
               startTick = curTime;
               endTick = curTime;
-              while(endTick < curChannelVec[curKey].size() && curChannelVec[curKey][endTick] == '1'){
+              while(endTick < curChannelVec[curKey].size()-1 && curChannelVec[curKey][endTick] == '1'){
                 endTick++;
                 curTime++;
               }
               //do the process of reading in this file and creating the tracks
-              std::cout << "track: " << curTrack << " startTime: " << startTick << " curChannel" << curChannel << " curKey "  <<  curKey << "Velocity: " << velocity << std::endl;
-              loadedInFile.addNoteOn(curTrack, startTick, curChannel, curKey, velocity);
-              loadedInFile.addNoteOff(curTrack, endTick, curChannel, curKey);
+              //std::cout << "track: " << curTrack << " startTime: " << startTick << " curChannel" << curChannel << " curKey "  <<  curKey << "Velocity: " << velocity << std::endl;
+
+              loadedInFile.addNoteOn(curTrack, startTick*12, curChannel, curKey, velocity);
+              loadedInFile.addNoteOff(curTrack, endTick*12, curChannel, curKey);
             }
           }
         }
-        curTrack++;
        }
     }
 
@@ -87,9 +90,11 @@ class Song{
 
 };
 
-Song::Song(){}
-Song::Song(smf::MidiFile & midiFile): m_midiFile(midiFile){
+Binary_Converter::Binary_Converter(){}
+Binary_Converter::Binary_Converter(smf::MidiFile & midiFile){
 
+  m_midiFile = midiFile;
+  
   m_midiFile.sortTracks();
   m_midiFile.doTimeAnalysis();
   m_midiFile.absoluteTicks();
@@ -108,6 +113,8 @@ Song::Song(smf::MidiFile & midiFile): m_midiFile(midiFile){
   m_midiFile.absoluteTicks();
   m_midiFile.linkNotePairs();
 
+  std::cout << "DONE" << std::endl;
+
 }
 
 //im going to need to use merge tracks to get all the tracks that are in the same family togeather
@@ -118,16 +125,16 @@ std::vector<std::vector<bool>> getBinaryTrack(smf::MidiEventList& eventList, int
   int duration;
   int startTime;
 
+  std::cout << ticksPQN << std::endl;
   int minNote = ticksPQN / 8;
   std::vector<std::vector<bool>> ret(128, std::vector<bool>(maxLength, 0));
 
   for(int i = 0; i < eventList.size(); i++){
 
     if(eventList[i].isNoteOn()){
-
       key = eventList[i].getKeyNumber();
-      duration = eventList[i].getTickDuration()/minNote;
-      startTime = eventList[i].tick/minNote;
+      duration = (eventList[i].getTickDuration()/minNote);// * (targetTempo/curTempo);
+      startTime = (eventList[i].tick/minNote);
 
       //for the duration of the note turn it on in the binary file
       for(int t = startTime; t < startTime + duration; t++){
@@ -160,7 +167,7 @@ void printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & 
 }
 
 
-void Song::writeToBinaryWithAllPossible(std::string absFilePath){
+void Binary_Converter::writeToBinaryWithAllPossible(std::string absFilePath){
   //there are 16 familys of midi isterments
   std::ofstream myfile;
   myfile.open (absFilePath);
@@ -193,7 +200,7 @@ void Song::writeToBinaryWithAllPossible(std::string absFilePath){
 }
 
 
-void Song::groupInsterments(){
+void Binary_Converter::groupInsterments(){
 
   for(int x = 0; x < m_numTracks-1; x++){
     for(int y = x + 1; y < m_numTracks; y++){
@@ -214,7 +221,7 @@ void Song::groupInsterments(){
 
 }
 
-void Song::getTrackInsterments(){
+void Binary_Converter::getTrackInsterments(){
     m_trackInsterments = std::vector<int>(m_numTracks, -1);//all tracks to have an insterment number of -1
 
     for(int curChannel = 0; curChannel < m_numTracks; curChannel++){
@@ -230,7 +237,7 @@ void Song::getTrackInsterments(){
     }
   }
 
-  void Song::pruneTracks(){
+  void Binary_Converter::pruneTracks(){
     for(int x = 0; x < m_trackInsterments.size(); x++){
 
       if(m_trackInsterments[x] == -1){
@@ -243,125 +250,13 @@ void Song::getTrackInsterments(){
     m_numTracks = m_midiFile.getTrackCount();
   }
 
-  void Song::write(std::string absFilePath){
+  void Binary_Converter::writeToMidiFile(std::string absFilePath){
     m_midiFile.write(absFilePath);
   }
 
-class Converter{
-
-  public:
-  std::vector<std::string> m_fileNames;
-  std::vector<Song> m_allSongs;
-
-
-  Converter();
-  Converter(std::vector<std::string> & fileNames);
-
-};
-
-
-Converter::Converter(){}
-
-Converter::Converter(std::vector<std::string> & fileNames):m_fileNames(fileNames){
-  //load in the files and set them into midiFiles
-  smf::MidiFile curFile;
-
-  for(int curIdx = 0; curIdx < m_fileNames.size(); curIdx++){
-
-    curFile.read(m_fileNames[curIdx]);
-
-    if(curFile.status() == false){
-
-      std::cout << "failed to load in file: " << m_fileNames[curIdx] << std::endl;
-      continue;
-
-    }else{
-
-    Song curSong(curFile);
-    m_allSongs.push_back(curSong);
-
-    }
-  }
-}
-
 
 namespace styleTransfer{
-/*
-  smf::MidiFile convertBinaryToMidi(std::string fileAbsName, std::string outputName){
-    std::ifstream infile(fileAbsName);
-    std::string line;
 
-    std::vector<std::string> noteStrings;
-    std::vector<std::vector<bool>> boolSong(128);
-
-    while (std::getline(infile, line)){
-      noteStrings.push_back(line);
-    }
-
-
-    for(int n = 0; n < noteStrings.size(); n++){
-      for(int i = 0; i <  noteStrings[n].size(); i++){
-        if(noteStrings[n][i] == '0'){
-          boolSong[n].push_back(0);
-        }else if(noteStrings[n][i] == '1'){
-          boolSong[n].push_back(1);
-        }
-      }
-    }
-
-    std::vector<int> noteOnTimes;
-    std::vector<int> noteOffTimes;
-
-    //bool isNoteOn = false;
-    bool noteFinished = false;
-    int curNoteTicks = 0;
-    int noteOnAt = 0;
-    int key;
-
-    for(int n = 0; n < boolSong.size(); n++){
-      for(int i = 0; i < boolSong.size(); i++){
-        if(!isNoteOn && boolSong[n][i] == 1){
-          isNoteOn = true;
-          noteOnAt = i;
-          key = n;
-          //curNoteTicks;
-
-        }
-      }
-    }
-
-    //parse the lines into note on and off events
-
-    smf::MidiFile ret;
-    //start of write
-
-    MidiFile midifile;
-    int track   = 0;
-    int channel = 0;
-    int instr   = 0;
-
-    midifile.addTimbre(track, 0, channel, instr);
-
-    int tpq = 60;
-    midifile.setTicksPerQuarterNote(tpq);
-
-   for (int i=0; i < count; i++) {
-
-      int starttick =
-      int key       =
-      int endtick   = starttick + int(duration(mt) / 4.0 * tpq);
-      midifile.addNoteOn (track, starttick, channel, key, 80);
-      midifile.addNoteOff(track, endtick,   channel, key);
-
-    }
-    midifile.sortTracks();  // Need to sort tracks since added events are
-                          // appended to track in random tick order.
-    string filename = options.getString(outputName);
-    midifile.write(filename);
-
-    return ret;
-  }
-*/
   void printBinarySongToFile(std::vector<std::vector<bool>> & hotEn, std::string fileAbsName){
 
     std::ofstream outFile;
