@@ -18,69 +18,46 @@ class Binary_Converter{
   Binary_Converter();
   Binary_Converter(smf::MidiFile & midiFile);
   void writeToMidiFile(std::string absFilePath);
-  void writeToBinaryWithAllPossible(std::string absFilePath);
-  void loadInBinary(std::string absBinaryPath){
+  void writeToBinaryWithAllPossible(std::string absFilePath, int maxLength, int channel);
+  std::vector<std::vector<bool>> getChannelAsVec(int insterment_number, int max_return_length);
+  void printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & myFile);
+  void loadInBinary(std::string absBinaryPath, int channel){
 
     smf::MidiFile loadedInFile;
     loadedInFile.setTicksPerQuarterNote(96);
 
-
     std::ifstream infile(absBinaryPath);
-    std::string curLine;
-
-    int curChannel = 0;
-    int linesRead = 0;
-    int curTrack = -1;
+    std::string curLine = "";
     int velocity = 80;
     int startTick;
+    int curTrack = 0;
     int endTick;
-
     std::vector<std::string> curChannelVec;
+
     while(std::getline(infile, curLine)){
+      curChannelVec.push_back(curLine);
+    }
 
-      if(curLine.length() == 0){
-        //skip the line
-        linesRead = 0;
-        curChannelVec.clear();
-      }else if(curLine.length() == 1){
-        curChannel++;
-        linesRead = 0;
-        curChannelVec.clear();
-      }else{
-        curChannelVec.push_back(curLine);
-        linesRead++;
-      }
-
-      if(linesRead == 128){
-        if(curTrack >= 0){
-          loadedInFile.addTrack();
-        }
-
-        curTrack++;
         for(int curKey = 0; curKey < curChannelVec.size(); curKey++){
           for(int curTime = 0; curTime < curChannelVec[curKey].size(); curTime++){
             if(curChannelVec[curKey][curTime] == '1'){
               startTick = curTime;
               endTick = curTime;
-              while(endTick < curChannelVec[curKey].size()-1 && curChannelVec[curKey][endTick] == '1'){
+              while(endTick < curChannelVec[curKey].size() && curChannelVec[curKey][endTick] == '1'){
                 endTick++;
                 curTime++;
               }
-              //do the process of reading in this file and creating the tracks
-              //std::cout << "track: " << curTrack << " startTime: " << startTick << " curChannel" << curChannel << " curKey "  <<  curKey << "Velocity: " << velocity << std::endl;
-
-              loadedInFile.addNoteOn(curTrack, startTick*12, curChannel, curKey, velocity);
-              loadedInFile.addNoteOff(curTrack, endTick*12, curChannel, curKey);
+              loadedInFile.addNoteOn(curTrack, startTick*12, channel, curKey, velocity);
+              loadedInFile.addNoteOff(curTrack, endTick*12, channel, curKey);
             }
           }
         }
-       }
-    }
-
-    m_midiFile = loadedInFile;
-    m_midiFile.sortTracks();
-  }
-
+            m_midiFile = loadedInFile;
+            m_midiFile.sortTracks();
+            m_midiFile.doTimeAnalysis();
+            m_midiFile.absoluteTicks();
+            m_midiFile.linkNotePairs();
+      }
 
   private:
   //these need to be called in this exact order or operations
@@ -94,7 +71,7 @@ Binary_Converter::Binary_Converter(){}
 Binary_Converter::Binary_Converter(smf::MidiFile & midiFile){
 
   m_midiFile = midiFile;
-  
+
   m_midiFile.sortTracks();
   m_midiFile.doTimeAnalysis();
   m_midiFile.absoluteTicks();
@@ -104,9 +81,9 @@ Binary_Converter::Binary_Converter(smf::MidiFile & midiFile){
   m_ticksPerQuarterNotes = m_midiFile.getTicksPerQuarterNote();
 
   getTrackInsterments();
-  pruneTracks();
-  groupInsterments();
-  getTrackInsterments();
+  //pruneTracks();
+  //groupInsterments();
+  //getTrackInsterments();
 
   m_midiFile.sortTracks();
   m_midiFile.doTimeAnalysis();
@@ -125,7 +102,7 @@ std::vector<std::vector<bool>> getBinaryTrack(smf::MidiEventList& eventList, int
   int duration;
   int startTime;
 
-  std::cout << ticksPQN << std::endl;
+  //std::cout << ticksPQN << std::endl;
   int minNote = ticksPQN / 8;
   std::vector<std::vector<bool>> ret(128, std::vector<bool>(maxLength, 0));
 
@@ -143,16 +120,13 @@ std::vector<std::vector<bool>> getBinaryTrack(smf::MidiEventList& eventList, int
           //guard agains indexing out of bounds
         }
       }
-
     }
-
   }
   return ret;
 
 }
 
-void printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & myFile){
-
+void Binary_Converter::printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & myFile){
   for(int key = 0; key < thingToPrint.size(); key++){
     for(int curTime = 0; curTime < thingToPrint[key].size(); curTime++){
       if(thingToPrint[key][curTime] == 1){
@@ -167,12 +141,46 @@ void printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & 
 }
 
 
-void Binary_Converter::writeToBinaryWithAllPossible(std::string absFilePath){
+//This function groups all interments into there general class I divide by eight,
+//that should be extracted out of this class
+std::vector<std::vector<bool>> Binary_Converter::getChannelAsVec(int insterment_number, int max_return_length){
+
+
+  int key;
+  int duration;
+  int start_time;
+
+  int family_num = insterment_number/8;//This gives the family grouping of the interment
+  int min_note = m_ticksPerQuarterNotes/8;
+  std::vector<std::vector<bool>> ret_channel(128, std::vector<bool>(max_return_length, 0));//Create the return vector
+
+    //I need an extra for loop to go over every track
+    for(int cur_track = 0; cur_track < m_midiFile.getTrackCount(); cur_track++){
+      for(int cur_event = 0; cur_event < m_midiFile[cur_track].size(); cur_event++){
+        //Check that this is in the same family, and that is is a note on event
+        if(m_midiFile[cur_track][cur_event].isNoteOn()){
+          if(m_trackInsterments[cur_track]/8 == family_num){
+            key = m_midiFile[cur_track][cur_event].getKeyNumber();
+            duration = m_midiFile[cur_track][cur_event].getTickDuration()/min_note;
+            start_time = m_midiFile[cur_track][cur_event].tick/min_note;
+            for(int t = start_time; t < start_time + duration; t++){
+                if (t < max_return_length){
+                  ret_channel[key][t] = 1;
+                }
+          }
+        }
+      }
+    }
+  }
+    return ret_channel;
+}
+
+
+void Binary_Converter::writeToBinaryWithAllPossible(std::string absFilePath, int maxLength, int channel){
   //there are 16 familys of midi isterments
   std::ofstream myfile;
   myfile.open (absFilePath);
 
-  int maxLength = 512;
   bool found = false;
   std::vector<std::vector<bool>> curChannel(128, std::vector<bool>(maxLength, 0));
 
@@ -180,10 +188,11 @@ void Binary_Converter::writeToBinaryWithAllPossible(std::string absFilePath){
 
     for(int x = 0; x < m_trackInsterments.size(); x++){
 
-      if(curFamily == (m_trackInsterments[x]/8)){
+      if(curFamily == ((m_trackInsterments[x])/8)){
 
         curChannel = getBinaryTrack(m_midiFile[x], maxLength, m_ticksPerQuarterNotes);
         found = true;
+        //std::cout << "get Binary Track: " << m_trackInsterments[x]  << std::endl;
       }
 
     }
@@ -228,23 +237,30 @@ void Binary_Converter::getTrackInsterments(){
       for(int curEvent = 0; curEvent < m_midiFile[curChannel].size(); curEvent++){
         if(m_midiFile[curChannel][curEvent].isTimbre()){
           if(m_trackInsterments[curChannel] == -1){
+            if(curChannel != 0 && curChannel-1 != m_midiFile[curChannel][curEvent].getChannel()){
+              m_trackInsterments[curChannel] = 1000;
+            }else{
             m_trackInsterments[curChannel] =  m_midiFile[curChannel][curEvent].getP1();
+            }
+            //std::cout << "channel1:" << curChannel << " " << m_midiFile[curChannel][curEvent].getChannel() << " " << m_midiFile[curChannel][curEvent].getP1() << std::endl;
           }else{
+            //std::cout << "channel2:" << curChannel << " " << m_midiFile[curChannel][curEvent].getChannel()  << " " << m_midiFile[curChannel][curEvent].getP1() << std::endl;
             m_midiFile[curChannel][curEvent].setP1(m_trackInsterments[curChannel]);
           }
         }
       }
     }
+    //for(int x = 0; x < m_trackInsterments.size(); x++){
+    //  std::cout << m_trackInsterments[x] << std::endl;
+    //}
   }
 
   void Binary_Converter::pruneTracks(){
     for(int x = 0; x < m_trackInsterments.size(); x++){
-
       if(m_trackInsterments[x] == -1){
         m_midiFile.deleteTrack(x);
         m_trackInsterments.erase(m_trackInsterments.begin() + x);
         x--;
-
       }
     }
     m_numTracks = m_midiFile.getTrackCount();
