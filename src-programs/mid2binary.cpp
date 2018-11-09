@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 	//smf::MidiFile temp_midi(test_file_in);
 	//Binary_Converter myConverter(temp_midi);
 	//myConverter.write_to_binary_long_form(test_file_out);
-	
+
 	//convert_files_to_binary(file_path_dir + americana_folk_filename,				 output_binary_dir + americana_dir);
 
 	convert_files_to_binary(file_path_dir + classical_guitar_filename, output_binary_dir + classical_dir);
@@ -36,11 +36,11 @@ int main(int argc, char** argv) {
 void convert_files_to_binary(std::string  file_with_filepaths, std::string  output_file_path){
 
 	std::cout << " In file converter! " << std::endl;
-	
-	std::string cur_line; 
+
+	std::string cur_line;
 	int file_num = 0;
 	int not_read = 0;
-	
+
 	std::ifstream in_stream(file_with_filepaths);
 	if(in_stream.is_open()){
 		while(std::getline(in_stream, cur_line)){
@@ -48,17 +48,15 @@ void convert_files_to_binary(std::string  file_with_filepaths, std::string  outp
 			smf::MidiFile temp_midi(cur_line);
 			Binary_Converter converter(temp_midi);
 
-			converter.write_to_binary_long_form(output_file_path + 
-							    std::to_string(file_num) + ".txt");
+			auto track = converter.getChannelAsVec(0, 128);
+			std::ofstream cur_file;
+			cur_file.open(output_file_path + std::to_string(file_num) + ".txt");
+			converter.printToFile(track, cur_file);
+			cur_file.close();
 			file_num++;
-		}	
+		}
 
 	}else{
-		std::cout << "unable to open file in: convert_files_to_binary()" << std::endl;
 		not_read++;
 	}
-	
-
-
-	std::cout << " Done with file converter!" << std::endl;
 }

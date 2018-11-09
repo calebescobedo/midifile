@@ -208,6 +208,7 @@ void Binary_Converter::writeToBinaryWithAllPossible(std::string absFilePath, int
 
 	myfile.close();
 }
+/*
 void Binary_Converter::write_to_binary_long_form(std::string absFilePath){
 	//where are 16 groups of midi files
 	std::ofstream myfile;
@@ -241,6 +242,7 @@ void Binary_Converter::write_to_binary_long_form(std::string absFilePath){
 
 	myfile.close();
 }
+*/
 
 
 
