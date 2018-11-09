@@ -13,8 +13,8 @@ int main(int argc, char** argv) {
 
 	//Load in all folk songs and convert them to binary
 	std::string output_binary_dir = "/data/hibbslab/cescobed/midi_input/binary/";
-	std::string classical_dir = "classical_guitar/";
-	std::string americana_dir = "americana_folk/";
+	std::string classical_dir = "trainB/";
+	std::string americana_dir = "trainA/";
 
 	std::string test_file_in =
 	"/data/hibbslab/data/midi/AMERICANA_FOLK_www.pdmusic.org_MIDIRip/civilwar/cws01.mid";
@@ -27,8 +27,7 @@ int main(int argc, char** argv) {
 	//Binary_Converter myConverter(temp_midi);
 	//myConverter.write_to_binary_long_form(test_file_out);
 
-	//convert_files_to_binary(file_path_dir + americana_folk_filename,				 output_binary_dir + americana_dir);
-
+	//convert_files_to_binary(file_path_dir + americana_folk_filename ,output_binary_dir + americana_dir);
 	convert_files_to_binary(file_path_dir + classical_guitar_filename, output_binary_dir + classical_dir);
 
 	return 0;
@@ -48,7 +47,7 @@ void convert_files_to_binary(std::string  file_with_filepaths, std::string  outp
 			smf::MidiFile temp_midi(cur_line);
 			Binary_Converter converter(temp_midi);
 
-			auto track = converter.getChannelAsVec(0, 128);
+			auto track = converter.getChannelAsVec(26, 128);
 			std::ofstream cur_file;
 			cur_file.open(output_file_path + std::to_string(file_num) + ".txt");
 			converter.printToFile(track, cur_file);
