@@ -39,12 +39,12 @@ class Binary_Converter{
       curChannelVec.push_back(curLine);
     }
 
-        for(int curKey = 0; curKey < curChannelVec.size(); curKey++){
-          for(int curTime = 0; curTime < curChannelVec[curKey].size(); curTime++){
+        for(int curKey = 0; curKey < (int)curChannelVec.size(); curKey++){
+          for(int curTime = 0; curTime < (int)curChannelVec[curKey].size(); curTime++){
             if(curChannelVec[curKey][curTime] == '1'){
               startTick = curTime;
               endTick = curTime;
-              while(endTick < curChannelVec[curKey].size() && curChannelVec[curKey][endTick] == '1'){
+              while(endTick < (int)curChannelVec[curKey].size() && curChannelVec[curKey][endTick] == '1'){
                 endTick++;
                 curTime++;
               }
@@ -128,8 +128,8 @@ std::vector<std::vector<bool>> getBinaryTrack(smf::MidiEventList& eventList, int
 }
 
 void Binary_Converter::printToFile(std::vector<std::vector<bool>> & thingToPrint, std::ofstream & myFile){
-  for(int key = 0; key < thingToPrint.size(); key++){
-    for(int curTime = 0; curTime < thingToPrint[key].size(); curTime++){
+  for(int key = 0; key < (int)thingToPrint.size(); key++){
+    for(int curTime = 0; curTime < (int)thingToPrint[key].size(); curTime++){
       if(thingToPrint[key][curTime] == 1){
         myFile << "1";
       } else {
@@ -293,7 +293,7 @@ void Binary_Converter::getTrackInsterments(){
   }
 
   void Binary_Converter::pruneTracks(){
-    for(int x = 0; x < m_trackInsterments.size(); x++){
+    for(int x = 0; x < (int)m_trackInsterments.size(); x++){
       if(m_trackInsterments[x] == -1){
         m_midiFile.deleteTrack(x);
         m_trackInsterments.erase(m_trackInsterments.begin() + x);
